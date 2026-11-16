@@ -22,6 +22,14 @@ permissions:
 
 env:
   AWS_REGION: ap-southeast-2
+  # None of these are secrets - they are public identifiers. Keeping them in
+  # the workflow makes misconfiguration impossible to hide in an unreadable
+  # GitHub secret. Security comes from the role's trust policy, not obscurity.
+  AWS_ROLE_ARN: arn:aws:iam::814808959987:role/portfolio-github-actions-deploy
+  API_URL: https://4jidl4ffyjuaqq2vht3xff6z6m0iedbx.lambda-url.ap-southeast-2.on.aws
+  SITE_BUCKET: neel-portfolio-site
+  CLOUDFRONT_DIST_ID: E1K448IY0ZB6XG
+  SITE_URL: https://d1z9n6e1v8b6j2.cloudfront.net
 
 jobs:
   deploy:
@@ -46,7 +54,7 @@ jobs:
       - name: Build static site
         env:
           STATIC_EXPORT: '1'
-          NEXT_PUBLIC_API_URL: ${{ secrets.API_URL }}
+          NEXT_PUBLIC_API_URL: ${{ env.API_URL }}
         run: npm run build
 
       - name: Fail if the build produced no content
@@ -57,44 +65,22 @@ jobs:
           [ "$pages" -ge 8 ] || { echo "::error::only $pages pages, expected >= 8"; exit 1; }
           # "NEEL BOSE" is a hard-coded fallback and survives an API outage, so
           # assert on real database content instead.
-          title=$(curl -fsS --max-time 20 "${{ secrets.API_URL }}/api/projects/" \
+          title=$(curl -fsS --max-time 20 "${{ env.API_URL }}/api/projects/" \
             | python3 -c "import sys,json;d=json.load(sys.stdin);print(d[0]['title'][:18] if d else '')")
           if [ -z "$title" ]; then echo "::error::API returned no projects"; exit 1; fi
           grep -qF "$title" out/projects/index.html \
             || { echo "::error::built pages have no live content — API unreachable during build"; exit 1; }
           echo "live content confirmed: $title"
 
-      # TEMPORARY DIAGNOSTIC - reports via ::error:: so it lands in Annotations.
-      - name: Verify OIDC inputs
-        run: |
-          curl -sH "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" > /tmp/t.json
-          SUB=$(python3 -c "
-          import json, base64
-          t = json.load(open('/tmp/t.json'))['value']
-          pl = t.split('.')[1]; pl += '=' * (-len(pl) % 4)
-          print(json.loads(base64.urlsafe_b64decode(pl))['sub'])
-          ")
-          EXPECTED="arn:aws:iam::814808959987:role/portfolio-github-actions-deploy"
-          ACTUAL="${{ secrets.AWS_ROLE_ARN }}"
-          echo "::error::OIDC sub = $SUB"
-          if [ -z "$ACTUAL" ]; then
-            echo "::error::AWS_ROLE_ARN secret is EMPTY or not set on this repo"
-          elif [ "$ACTUAL" = "$EXPECTED" ]; then
-            echo "::error::AWS_ROLE_ARN is CORRECT (len ${#ACTUAL})"
-          else
-            echo "::error::AWS_ROLE_ARN is WRONG - len ${#ACTUAL}, expected ${#EXPECTED}. Re-paste it."
-          fi
-
       - name: Assume AWS role via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Sync to S3
         env:
-          BUCKET: ${{ secrets.SITE_BUCKET }}
+          BUCKET: ${{ env.SITE_BUCKET }}
         run: |
           # hashed assets are immutable; HTML must always revalidate
           aws s3 sync out "s3://$BUCKET" --delete \
@@ -107,7 +93,7 @@ jobs:
       - name: Invalidate CloudFront
         run: |
           id=$(aws cloudfront create-invalidation \
-            --distribution-id "${{ secrets.CLOUDFRONT_DIST_ID }}" \
+            --distribution-id "${{ env.CLOUDFRONT_DIST_ID }}" \
             --paths "/*" --query 'Invalidation.Id' --output text)
           echo "invalidation $id created"
 
@@ -115,4 +101,4 @@ jobs:
         run: |
           echo "### Site published :rocket:" >> "$GITHUB_STEP_SUMMARY"
           echo "- trigger: \`${{ github.event_name }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- ${{ secrets.SITE_URL }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ${{ env.SITE_URL }}" >> "$GITHUB_STEP_SUMMARY"
