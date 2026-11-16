@@ -64,6 +64,25 @@ jobs:
             || { echo "::error::built pages have no live content — API unreachable during build"; exit 1; }
           echo "live content confirmed: $title"
 
+      # TEMPORARY DIAGNOSTIC - remove once OIDC works.
+      - name: Show OIDC subject claim
+        run: |
+          curl -sH "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" > /tmp/t.json
+          python3 - <<'PY'
+          import json, base64
+          tok = json.load(open('/tmp/t.json'))['value']
+          pl = tok.split('.')[1]
+          pl += '=' * (-len(pl) % 4)
+          c = json.loads(base64.urlsafe_b64decode(pl))
+          for k in ('sub', 'aud', 'repository', 'ref'):
+              print('  %-11s %s' % (k, c.get(k)))
+          PY
+          EXPECTED="arn:aws:iam::814808959987:role/portfolio-github-actions-deploy"
+          ACTUAL="${{ secrets.AWS_ROLE_ARN }}"
+          echo "  arn length  ${#ACTUAL} (expected ${#EXPECTED})"
+          test "$ACTUAL" = "$EXPECTED" && echo "  arn matches  YES" || echo "  arn matches  NO <-- problem"
+
       - name: Assume AWS role via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
