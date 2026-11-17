@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Terminal } from '@/components/Terminal'
 import { NavMenu } from '@/components/NavMenu'
+import { ScrollCue } from '@/components/ScrollCue'
 import { api, LandingContent } from '@/lib/api'
 import { withLandingDefaults } from '@/lib/landing-defaults'
 
@@ -75,17 +76,7 @@ export default async function Home() {
         </div>
 
         {/* scroll cue */}
-        <a
-          href="#navigate"
-          className="absolute left-1/2 bottom-5 -translate-x-1/2 flex flex-col items-center gap-2
-                     font-extrabold text-[11px] tracking-[.2em] text-dim uppercase
-                     animate-bob hover:text-accent transition-colors"
-        >
-          <span>scroll</span>
-          <svg viewBox="0 0 16 16" fill="none" aria-hidden="true" className="w-4 h-4">
-            <path d="M3 6L8 11L13 6" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
-          </svg>
-        </a>
+        <ScrollCue />
       </section>
 
       {/* NAV MENU */}
