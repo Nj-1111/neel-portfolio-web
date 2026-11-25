@@ -25,11 +25,11 @@ env:
   # None of these are secrets - they are public identifiers. Keeping them in
   # the workflow makes misconfiguration impossible to hide in an unreadable
   # GitHub secret. Security comes from the role's trust policy, not obscurity.
-  AWS_ROLE_ARN: arn:aws:iam::814808959987:role/portfolio-github-actions-deploy
-  API_URL: https://4jidl4ffyjuaqq2vht3xff6z6m0iedbx.lambda-url.ap-southeast-2.on.aws
-  SITE_BUCKET: neel-portfolio-site
-  CLOUDFRONT_DIST_ID: E1K448IY0ZB6XG
-  SITE_URL: https://d1z9n6e1v8b6j2.cloudfront.net
+  AWS_ROLE_ARN: arn:aws:iam::976083331495:role/portfolio-github-actions-deploy
+  API_URL: https://simd54kc2yz3h7laqoc2eqkth40beiny.lambda-url.ap-southeast-2.on.aws
+  SITE_BUCKET: neel-portfolio-site-v2
+  CLOUDFRONT_DIST_ID: E23WNMGXADQZV6
+  SITE_URL: https://d66qkcyh9n5dc.cloudfront.net
 
 jobs:
   deploy:
